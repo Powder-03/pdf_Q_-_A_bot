@@ -1,4 +1,7 @@
 from django.shortcuts import render
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from rest_framework.parsers import MultiPartParser, FormParser
 
 # Create your views here.
 from rest_framework import generics, status
@@ -16,8 +19,14 @@ class DocumentListView(generics.ListAPIView):
     serializer_class = DocumentSerializer
 
 class DocumentUploadView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
     """POST API: Upload and process documents"""
-    
+
+    @swagger_auto_schema(
+        operation_description="Upload and process a document (PDF/DOCX/TXT)",
+        responses={201: openapi.Response("Document uploaded", DocumentSerializer)},
+        consumes=["multipart/form-data"]
+    )
     def post(self, request):
         serializer = DocumentUploadSerializer(data=request.data)
         if serializer.is_valid():
@@ -48,7 +57,21 @@ class DocumentUploadView(APIView):
 
 class DocumentQuestionView(APIView):
     """POST API: Ask questions about documents (RAG query endpoint)"""
-    
+
+    @swagger_auto_schema(
+        operation_description="Ask a question about a document (RAG query endpoint)",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'document_id': openapi.Schema(type=openapi.TYPE_STRING, description='Document UUID'),
+                'question': openapi.Schema(type=openapi.TYPE_STRING, description='Question to ask about the document'),
+                'search_kwargs': openapi.Schema(type=openapi.TYPE_OBJECT, description='Optional search kwargs', default={}),
+            },
+            required=['document_id', 'question'],
+        ),
+        responses={200: openapi.Response("Answer returned")},
+        consumes=["application/json"]
+    )
     def post(self, request):
         serializer = QuestionSerializer(data=request.data)
         if serializer.is_valid():
